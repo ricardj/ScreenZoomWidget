@@ -45,17 +45,33 @@ private fun isPermissionGranted(context: Context): Boolean {
 fun InstructionScreen() {
     val context = LocalContext.current
     val permissionGranted = isPermissionGranted(context)
+    val versionName = try {
+        context.packageManager.getPackageInfo(context.packageName, 0).versionName
+    } catch (e: Exception) {
+        "Unknown"
+    }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        if (permissionGranted) {
-            PermissionGrantedView()
-        } else {
-            PermissionDeniedView()
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            if (permissionGranted) {
+                PermissionGrantedView()
+            } else {
+                PermissionDeniedView()
+            }
         }
+
+        Text(
+            text = "v$versionName",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            modifier = Modifier
+                .align(androidx.compose.ui.Alignment.BottomEnd)
+                .padding(16.dp)
+        )
     }
 }
 
