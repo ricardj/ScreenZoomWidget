@@ -1,6 +1,8 @@
 package com.gemini.zoomwidget
 
 import android.content.Context
+import android.content.Intent
+import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
 
@@ -11,7 +13,6 @@ object ZoomUtils {
         val resolver = context.contentResolver
         
         // 1. Get current state (preferring Samsung's index if available)
-        val currentDensityStr = Settings.Secure.getString(resolver, "display_density_forced")
         val samsungZoomIndex = try {
             Settings.System.getInt(resolver, "screen_zoom")
         } catch (e: Exception) {
@@ -19,38 +20,70 @@ object ZoomUtils {
         }
 
         // 2. Define toggle targets
-        // DPI: 320 (Min) <-> 600 (Max)
-        // Samsung Index: 0 (Min) <-> 4 (Max)
-        val zoomedOutDpi = "320"
-        val zoomedInDpi = "600"
+        val zoomedOutDpi = 320
+        val zoomedInDpi = 600
         val zoomedOutIndex = 0
         val zoomedInIndex = 4
 
         // 3. Determine if we are currently "Zoomed In"
         val isCurrentlyZoomedIn = if (samsungZoomIndex != -1) {
-            samsungZoomIndex >= 3 // Index 3 or 4 is considered zoomed in
+            samsungZoomIndex >= 3
         } else {
-            currentDensityStr == zoomedInDpi
+            val currentDpi = Settings.Secure.getString(resolver, "display_density_forced")
+            currentDpi == zoomedInDpi.toString()
         }
 
         // 4. Set new values
         val targetDpi = if (isCurrentlyZoomedIn) zoomedOutDpi else zoomedInDpi
         val targetIndex = if (isCurrentlyZoomedIn) zoomedOutIndex else zoomedInIndex
 
+        applySettings(context, targetDpi, targetIndex)
+    }
+
+    private fun applySettings(context: Context, dpi: Int, index: Int) {
+        val resolver = context.contentResolver
         try {
-            // Standard Android DPI change
-            Settings.Secure.putString(resolver, "display_density_forced", targetDpi)
+            // A. Update Android standard DPI
+            Settings.Secure.putString(resolver, "display_density_forced", dpi.toString())
             
-            // Samsung-specific slider change
+            // B. Update Samsung-specific slider index
             try {
-                Settings.System.putInt(resolver, "screen_zoom", targetIndex)
+                Settings.System.putInt(resolver, "screen_zoom", index)
             } catch (e: Exception) {
-                Log.w(TAG, "Could not set Samsung screen_zoom index (requires WRITE_SETTINGS)")
+                Log.w(TAG, "Could not set Samsung screen_zoom (requires WRITE_SETTINGS)")
             }
+
+            // C. Force refresh via WindowManager API
+            try {
+                val serviceManagerClass = Class.forName("android.os.ServiceManager")
+                val getServiceMethod = serviceManagerClass.getMethod("getService", String::class.java)
+                val windowManagerBinder = getServiceMethod.invoke(null, "window") as IBinder
+                
+                val iWindowManagerStubClass = Class.forName("android.view.IWindowManager\$Stub")
+                val asInterfaceMethod = iWindowManagerStubClass.getMethod("asInterface", IBinder::class.java)
+                val iWindowManagerInstance = asInterfaceMethod.invoke(null, windowManagerBinder)
+                
+                val setForcedDisplayDensityForUserMethod = iWindowManagerInstance.javaClass.getMethod(
+                    "setForcedDisplayDensityForUser",
+                    Int::class.javaPrimitiveType,
+                    Int::class.javaPrimitiveType,
+                    Int::class.javaPrimitiveType
+                )
+                
+                // displayId = 0, density = dpi, userId = -2 (USER_CURRENT)
+                setForcedDisplayDensityForUserMethod.invoke(iWindowManagerInstance, 0, dpi, -2)
+            } catch (e: Exception) {
+                Log.e(TAG, "Reflection API failed", e)
+            }
+
+            // D. Broadcast Samsung-specific refresh intent
+            val intent = Intent("com.samsung.android.intent.action.SCREEN_ZOOM_CHANGED")
+            intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+            context.sendBroadcast(intent)
             
-            Log.d(TAG, "Toggled zoom to DPI: $targetDpi, Samsung Index: $targetIndex")
+            Log.d(TAG, "Applied Zoom Change: DPI=$dpi, Index=$index")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to toggle zoom settings", e)
+            Log.e(TAG, "Failed to apply zoom settings", e)
         }
     }
 }

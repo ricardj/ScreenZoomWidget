@@ -34,7 +34,7 @@ class ZoomWidgetProvider : AppWidgetProvider() {
                 }
                 context.startActivity(launchIntent)
             } else {
-                // Permission granted, toggle zoom with Samsung index support
+                // Permission granted, toggle zoom with full Samsung support
                 ZoomUtils.toggleZoom(context)
 
                 // Update the widget to reflect the change
