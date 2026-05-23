@@ -1,10 +1,10 @@
-package com.gemini.zoomwidget
-
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.provider.Settings
 import android.widget.RemoteViews
 
 class ZoomWidgetProvider : AppWidgetProvider() {
@@ -22,7 +22,21 @@ class ZoomWidgetProvider : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (intent.action == ACTION_TOGGLE_ZOOM) {
-            // TODO: Add zoom toggle logic here
+            val contentResolver = context.contentResolver
+            val currentDensity = Settings.Secure.getString(contentResolver, "display_density_forced")
+            val zoomedDensity = "480"
+
+            if (currentDensity == zoomedDensity) {
+                Settings.Secure.putString(contentResolver, "display_density_forced", "")
+            } else {
+                Settings.Secure.putString(contentResolver, "display_density_forced", zoomedDensity)
+            }
+
+            // Update the widget to reflect the change
+            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val thisAppWidget = ComponentName(context, ZoomWidgetProvider::class.java)
+            val appWidgetIds = appWidgetManager.getAppWidgetIds(thisAppWidget)
+            onUpdate(context, appWidgetManager, appWidgetIds)
         }
     }
 
