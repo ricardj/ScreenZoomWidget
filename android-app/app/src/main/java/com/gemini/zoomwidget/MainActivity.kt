@@ -4,10 +4,12 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -77,6 +79,8 @@ fun InstructionScreen() {
 
 @Composable
 fun PermissionGrantedView() {
+    val context = LocalContext.current
+    
     Text(
         text = "Permission Granted!",
         style = MaterialTheme.typography.headlineMedium,
@@ -87,6 +91,29 @@ fun PermissionGrantedView() {
         text = "You can now add the widget to your home screen.",
         style = MaterialTheme.typography.bodyLarge
     )
+    
+    Spacer(modifier = Modifier.height(32.dp))
+    
+    Button(
+        onClick = {
+            val contentResolver = context.contentResolver
+            val currentDensity = Settings.Secure.getString(contentResolver, "display_density_forced")
+            
+            val zoomedOutDensity = "320"
+            val zoomedInDensity = "600"
+
+            val newDensity = if (currentDensity == zoomedInDensity) {
+                zoomedOutDensity
+            } else {
+                zoomedInDensity
+            }
+
+            Settings.Secure.putString(contentResolver, "display_density_forced", newDensity)
+        },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text("Toggle Zoom")
+    }
 }
 
 @Composable
