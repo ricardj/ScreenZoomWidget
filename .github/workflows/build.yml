@@ -31,12 +31,14 @@ jobs:
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
+      working-directory: android-app
 
     - name: Build debug APK
       run: ./gradlew assembleDebug
+      working-directory: android-app
 
     - name: Upload debug APK
       uses: actions/upload-artifact@v4
       with:
         name: zoom-widget-debug-apk
-        path: app/build/outputs/apk/debug/app-debug.apk
+        path: android-app/app/build/outputs/apk/debug/app-debug.apk
