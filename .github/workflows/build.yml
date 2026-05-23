@@ -11,7 +11,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      apk_path: ${{ steps.set_apk_path.outputs.path }}
+      apk_name: ${{ steps.set_apk_info.outputs.name }}
+      apk_path: ${{ steps.set_apk_info.outputs.path }}
 
     steps:
     - name: Checkout repository
@@ -41,15 +42,21 @@ jobs:
       run: ./gradlew assembleDebug
       working-directory: android-app
 
-    - name: Set APK Path Output
-      id: set_apk_path
-      run: echo "path=android-app/app/build/outputs/apk/debug/app-debug.apk" >> $GITHUB_OUTPUT
+    - name: Set APK Info
+      id: set_apk_info
+      run: |
+        VERSION_NAME=$(grep "versionName =" android-app/app/build.gradle.kts | awk -F'"' '{print $2}')
+        APK_NAME="ZoomWidget_$VERSION_NAME"
+        APK_PATH="android-app/app/build/outputs/apk/debug/$APK_NAME.apk"
+        mv android-app/app/build/outputs/apk/debug/app-debug.apk "$APK_PATH"
+        echo "name=$APK_NAME" >> $GITHUB_OUTPUT
+        echo "path=$APK_PATH" >> $GITHUB_OUTPUT
 
     - name: Upload debug APK artifact
       uses: actions/upload-artifact@v7
       with:
-        name: zoom-widget-debug-apk
-        path: android-app/app/build/outputs/apk/debug/app-debug.apk
+        name: ${{ steps.set_apk_info.outputs.name }}
+        path: ${{ steps.set_apk_info.outputs.path }}
 
   release:
     needs: build
@@ -61,12 +68,12 @@ jobs:
       - name: Download APK artifact
         uses: actions/download-artifact@v4
         with:
-          name: zoom-widget-debug-apk
+          name: ${{ needs.build.outputs.apk_name }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: app-debug.apk
+          files: ${{ needs.build.outputs.apk_name }}.apk
           generate_release_notes: true
           draft: false
           prerelease: false
