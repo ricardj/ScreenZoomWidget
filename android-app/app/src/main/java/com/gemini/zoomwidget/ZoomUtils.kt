@@ -23,10 +23,10 @@ object ZoomUtils {
             zoomedInDensity
         }
 
-        setDensity(targetDensity)
+        setDensity(context, targetDensity)
     }
 
-    private fun setDensity(density: Int) {
+    private fun setDensity(context: Context, density: Int) {
         try {
             // Get the IWindowManager service via ServiceManager
             val serviceManagerClass = Class.forName("android.os.ServiceManager")
