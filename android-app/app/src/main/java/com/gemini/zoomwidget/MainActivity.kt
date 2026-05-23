@@ -96,19 +96,7 @@ fun PermissionGrantedView() {
     
     Button(
         onClick = {
-            val contentResolver = context.contentResolver
-            val currentDensity = Settings.Secure.getString(contentResolver, "display_density_forced")
-            
-            val zoomedOutDensity = "320"
-            val zoomedInDensity = "600"
-
-            val newDensity = if (currentDensity == zoomedInDensity) {
-                zoomedOutDensity
-            } else {
-                zoomedInDensity
-            }
-
-            Settings.Secure.putString(contentResolver, "display_density_forced", newDensity)
+            ZoomUtils.toggleZoom(context)
         },
         modifier = Modifier.fillMaxWidth()
     ) {
