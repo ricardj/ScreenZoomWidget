@@ -117,8 +117,7 @@ fun PermissionDeniedView() {
         )
     }
     Text(
-        text = "
-After running the command, restart the app.",
+        text = "\nAfter running the command, restart the app.",
         style = MaterialTheme.typography.bodyLarge,
         modifier = Modifier.padding(top = 16.dp)
     )
