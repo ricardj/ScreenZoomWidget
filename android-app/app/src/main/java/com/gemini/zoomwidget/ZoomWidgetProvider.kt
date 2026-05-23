@@ -37,13 +37,18 @@ class ZoomWidgetProvider : AppWidgetProvider() {
                 // Permission granted, toggle zoom
                 val contentResolver = context.contentResolver
                 val currentDensity = Settings.Secure.getString(contentResolver, "display_density_forced")
-                val zoomedDensity = "480"
+                
+                // 320 is typically "Small/Zoomed Out", 600 is "Large/Zoomed In"
+                val zoomedOutDensity = "320"
+                val zoomedInDensity = "600"
 
-                if (currentDensity == zoomedDensity) {
-                    Settings.Secure.putString(contentResolver, "display_density_forced", "")
+                val newDensity = if (currentDensity == zoomedInDensity) {
+                    zoomedOutDensity
                 } else {
-                    Settings.Secure.putString(contentResolver, "display_density_forced", zoomedDensity)
+                    zoomedInDensity
                 }
+
+                Settings.Secure.putString(contentResolver, "display_density_forced", newDensity)
 
                 // Update the widget to reflect the change
                 val appWidgetManager = AppWidgetManager.getInstance(context)
