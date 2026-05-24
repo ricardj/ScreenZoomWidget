@@ -25,6 +25,10 @@ To change the screen zoom, the app needs the `WRITE_SECURE_SETTINGS` permission.
 
 The main screen of the app will detect if the permission is granted and will show you the exact `adb` command you need to run. This is a one-time setup step.
 
+Alternatively, this repository includes automated setup scripts in the `scripts/` directory:
+- `scripts/grant_permission.py`: Automatically finds `adb` on your system and grants the `WRITE_SECURE_SETTINGS` permission to the connected device.
+- `scripts/install_latest.py`: Automatically downloads the latest release APK from GitHub, uninstalls any conflicting versions, installs the new APK, and grants the required permissions using `grant_permission.py`.
+
 ## Implementation Steps
 
 1.  **Project Setup:** Create a new, empty Android project configured for Kotlin and Jetpack Compose.

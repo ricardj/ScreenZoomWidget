@@ -1,4 +1,4 @@
-Next steps:
+# Next Steps
 
-- Right now the widget doesn't work. Shows: Couldn't add widget.
-- Right now both the zoom in and zoom out is beyond Samsung Limits. Set the min and max exactly as the range samsung offers through UI.
+- We want to add a shortcut inside the app to the actual setting.
+- Do the min zoom out / max zoom in editable through the app.

@@ -58,3 +58,9 @@ You need to enable developer options on your phone to allow `adb` to connect to 
     ```
 
 If the command runs successfully, you will not see any message. It will simply move to the next line. The permission is now granted. You can disconnect your phone.
+
+### Automated Setup Alternative
+Instead of running `adb` commands manually, you can use the provided Python scripts if you have Python installed on your computer:
+1. Open a terminal in the project's root folder.
+2. Run `python scripts/grant_permission.py`. The script will automatically locate your ADB installation and grant the `WRITE_SECURE_SETTINGS` permission.
+3. You can also run `python scripts/install_latest.py` to automatically fetch the latest release from GitHub, install it, and grant the permissions all in one go!
