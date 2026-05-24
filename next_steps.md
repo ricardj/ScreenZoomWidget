@@ -1,7 +1,4 @@
-Flow Keeper:
+Next steps:
 
-
-Now there seems to be an issue where, somehow, the value is updated but the screen doesn't trigger any update.
-
-
-
+- Right now the widget doesn't work. Shows: Couldn't add widget.
+- Right now both the zoom in and zoom out is beyond Samsung Limits. Set the min and max exactly as the range samsung offers through UI.
