@@ -2,15 +2,43 @@ package com.gemini.zoomwidget
 
 import android.content.Context
 import android.content.Intent
+import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
+import java.lang.reflect.Method
 
 object ZoomUtils {
     private const val TAG = "ZoomUtils"
 
+    /**
+     * Bypass Android's hidden API restrictions (Android 9+).
+     * This allows reflection on internal APIs like IWindowManager.
+     * Must be called once before any hidden API reflection.
+     */
+    private var hiddenApisBypassed = false
+
+    private fun bypassHiddenApis() {
+        if (hiddenApisBypassed) return
+        try {
+            val vmRuntimeClass = Class.forName("dalvik.system.VMRuntime")
+            val getRuntimeMethod = vmRuntimeClass.getDeclaredMethod("getRuntime")
+            val vmRuntime = getRuntimeMethod.invoke(null)
+            val setExemptionsMethod = vmRuntimeClass.getDeclaredMethod(
+                "setHiddenApiExemptions",
+                Array<String>::class.java
+            )
+            // "L" exempts all classes (all JNI class names start with "L")
+            setExemptionsMethod.invoke(vmRuntime, arrayOf("L") as Any)
+            hiddenApisBypassed = true
+            Log.d(TAG, "Hidden API bypass successful")
+        } catch (e: Exception) {
+            Log.w(TAG, "Hidden API bypass failed (may not be needed on this Android version)", e)
+        }
+    }
+
     fun toggleZoom(context: Context) {
         val resolver = context.contentResolver
-        
+
         // 1. Get current state (preferring Samsung's index if available)
         val samsungZoomIndex = try {
             Settings.System.getInt(resolver, "screen_zoom")
@@ -28,12 +56,11 @@ object ZoomUtils {
         val isCurrentlyZoomedIn = if (samsungZoomIndex != -1) {
             samsungZoomIndex >= 3
         } else {
-            // Check Settings.Global (where Android actually stores the override)
+            // Read from Settings.Secure (where WMS persists the value)
             val currentDpi = try {
-                Settings.Global.getString(resolver, "display_density_forced")
-            } catch (e: Exception) {
-                // Fallback to Secure if Global fails
                 Settings.Secure.getString(resolver, "display_density_forced")
+            } catch (e: Exception) {
+                null
             }
             currentDpi == zoomedInDpi.toString()
         }
@@ -42,51 +69,110 @@ object ZoomUtils {
         val targetDpi = if (isCurrentlyZoomedIn) zoomedOutDpi else zoomedInDpi
         val targetIndex = if (isCurrentlyZoomedIn) zoomedOutIndex else zoomedInIndex
 
+        Log.d(TAG, "Toggle: currently=${if (isCurrentlyZoomedIn) "ZoomedIn" else "ZoomedOut"} → target DPI=$targetDpi, index=$targetIndex")
         applySettings(context, targetDpi, targetIndex)
     }
 
     private fun applySettings(context: Context, dpi: Int, index: Int) {
         val resolver = context.contentResolver
+        var dpiApplied = false
+
+        // ═══════════════════════════════════════════════════════════════
+        // STRATEGY A: IWindowManager reflection (most reliable from app)
+        // This is the SAME call that "wm density" makes internally,
+        // but via Binder from our process (which has WRITE_SECURE_SETTINGS)
+        // instead of via a shell command (which gets blocked by SELinux).
+        // ═══════════════════════════════════════════════════════════════
         try {
-            // A. Apply DPI via "wm density" command (most reliable method)
-            // This is equivalent to "adb shell wm density <dpi>" and works with
-            // WRITE_SECURE_SETTINGS permission. It triggers an immediate screen refresh.
+            // First, bypass hidden API restrictions (Android 9+)
+            bypassHiddenApis()
+
+            val serviceManagerClass = Class.forName("android.os.ServiceManager")
+            val getServiceMethod = serviceManagerClass.getMethod("getService", String::class.java)
+            val windowManagerBinder = getServiceMethod.invoke(null, "window") as IBinder
+
+            val iWindowManagerStubClass = Class.forName("android.view.IWindowManager\$Stub")
+            val asInterfaceMethod = iWindowManagerStubClass.getMethod("asInterface", IBinder::class.java)
+            val windowManager = asInterfaceMethod.invoke(null, windowManagerBinder)
+
+            val setDensityMethod = windowManager.javaClass.getMethod(
+                "setForcedDisplayDensityForUser",
+                Int::class.javaPrimitiveType,  // displayId
+                Int::class.javaPrimitiveType,  // density
+                Int::class.javaPrimitiveType   // userId
+            )
+
+            // displayId=0 (default display), density=dpi, userId=-2 (USER_CURRENT)
+            setDensityMethod.invoke(windowManager, 0, dpi, -2)
+            dpiApplied = true
+            Log.d(TAG, "Strategy A (IWindowManager reflection): SUCCESS - DPI=$dpi")
+        } catch (e: Exception) {
+            Log.w(TAG, "Strategy A (IWindowManager reflection): FAILED", e)
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // STRATEGY B: "wm density" via shell (fallback)
+        // May be blocked by SELinux on Samsung but worth trying.
+        // ═══════════════════════════════════════════════════════════════
+        if (!dpiApplied) {
             try {
-                val process = Runtime.getRuntime().exec(arrayOf("wm", "density", dpi.toString()))
+                val process = Runtime.getRuntime().exec(
+                    arrayOf("/system/bin/sh", "-c", "wm density $dpi")
+                )
                 val exitCode = process.waitFor()
+                val stdout = process.inputStream.bufferedReader().readText()
+                val stderr = process.errorStream.bufferedReader().readText()
+
                 if (exitCode == 0) {
-                    Log.d(TAG, "wm density $dpi applied successfully")
+                    dpiApplied = true
+                    Log.d(TAG, "Strategy B (wm density shell): SUCCESS - DPI=$dpi")
                 } else {
-                    val errorOutput = process.errorStream.bufferedReader().readText()
-                    Log.e(TAG, "wm density failed (exit=$exitCode): $errorOutput")
+                    Log.w(TAG, "Strategy B (wm density shell): FAILED exit=$exitCode stdout=$stdout stderr=$stderr")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "wm density command failed", e)
+                Log.w(TAG, "Strategy B (wm density shell): FAILED", e)
             }
+        }
 
-            // B. Update Settings.Global for persistence (so the value survives reboots
-            // and is consistent with what wm density sets)
+        // ═══════════════════════════════════════════════════════════════
+        // STRATEGY C: Write display_density_forced to Settings.Secure
+        // On AOSP, WindowManagerService has a ContentObserver on this key
+        // that triggers a configuration refresh. This is a last resort
+        // since not all OEMs implement this observer.
+        // ═══════════════════════════════════════════════════════════════
+        if (!dpiApplied) {
             try {
-                Settings.Global.putString(resolver, "display_density_forced", dpi.toString())
+                val success = Settings.Secure.putString(
+                    resolver, "display_density_forced", dpi.toString()
+                )
+                Log.d(TAG, "Strategy C (Settings.Secure write): ${if (success) "written" else "FAILED to write"}")
+                if (success) dpiApplied = true
             } catch (e: Exception) {
-                Log.w(TAG, "Could not write display_density_forced to Settings.Global", e)
+                Log.w(TAG, "Strategy C (Settings.Secure write): FAILED", e)
             }
+        }
 
-            // C. Update Samsung-specific slider index
-            try {
-                Settings.System.putInt(resolver, "screen_zoom", index)
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not set Samsung screen_zoom (requires WRITE_SETTINGS)")
-            }
+        // ═══════════════════════════════════════════════════════════════
+        // SAMSUNG: Update screen_zoom index and broadcast
+        // This keeps the Samsung Settings UI slider in sync.
+        // ═══════════════════════════════════════════════════════════════
+        try {
+            Settings.System.putInt(resolver, "screen_zoom", index)
+            Log.d(TAG, "Samsung screen_zoom index set to $index")
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not set Samsung screen_zoom index", e)
+        }
 
-            // D. Broadcast Samsung-specific refresh intent
+        // Broadcast Samsung-specific refresh intent
+        try {
             val intent = Intent("com.samsung.android.intent.action.SCREEN_ZOOM_CHANGED")
             intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             context.sendBroadcast(intent)
-            
-            Log.d(TAG, "Applied Zoom Change: DPI=$dpi, Index=$index")
+            Log.d(TAG, "Samsung SCREEN_ZOOM_CHANGED broadcast sent")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to apply zoom settings", e)
+            Log.w(TAG, "Samsung broadcast failed", e)
         }
+
+        Log.d(TAG, "Applied Zoom Change: DPI=$dpi, Index=$index, dpiApplied=$dpiApplied")
     }
 }
