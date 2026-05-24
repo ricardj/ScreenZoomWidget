@@ -2,7 +2,6 @@ package com.gemini.zoomwidget
 
 import android.content.Context
 import android.content.Intent
-import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
 
@@ -29,7 +28,13 @@ object ZoomUtils {
         val isCurrentlyZoomedIn = if (samsungZoomIndex != -1) {
             samsungZoomIndex >= 3
         } else {
-            val currentDpi = Settings.Secure.getString(resolver, "display_density_forced")
+            // Check Settings.Global (where Android actually stores the override)
+            val currentDpi = try {
+                Settings.Global.getString(resolver, "display_density_forced")
+            } catch (e: Exception) {
+                // Fallback to Secure if Global fails
+                Settings.Secure.getString(resolver, "display_density_forced")
+            }
             currentDpi == zoomedInDpi.toString()
         }
 
@@ -43,37 +48,35 @@ object ZoomUtils {
     private fun applySettings(context: Context, dpi: Int, index: Int) {
         val resolver = context.contentResolver
         try {
-            // A. Update Android standard DPI
-            Settings.Secure.putString(resolver, "display_density_forced", dpi.toString())
-            
-            // B. Update Samsung-specific slider index
+            // A. Apply DPI via "wm density" command (most reliable method)
+            // This is equivalent to "adb shell wm density <dpi>" and works with
+            // WRITE_SECURE_SETTINGS permission. It triggers an immediate screen refresh.
+            try {
+                val process = Runtime.getRuntime().exec(arrayOf("wm", "density", dpi.toString()))
+                val exitCode = process.waitFor()
+                if (exitCode == 0) {
+                    Log.d(TAG, "wm density $dpi applied successfully")
+                } else {
+                    val errorOutput = process.errorStream.bufferedReader().readText()
+                    Log.e(TAG, "wm density failed (exit=$exitCode): $errorOutput")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "wm density command failed", e)
+            }
+
+            // B. Update Settings.Global for persistence (so the value survives reboots
+            // and is consistent with what wm density sets)
+            try {
+                Settings.Global.putString(resolver, "display_density_forced", dpi.toString())
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not write display_density_forced to Settings.Global", e)
+            }
+
+            // C. Update Samsung-specific slider index
             try {
                 Settings.System.putInt(resolver, "screen_zoom", index)
             } catch (e: Exception) {
                 Log.w(TAG, "Could not set Samsung screen_zoom (requires WRITE_SETTINGS)")
-            }
-
-            // C. Force refresh via WindowManager API
-            try {
-                val serviceManagerClass = Class.forName("android.os.ServiceManager")
-                val getServiceMethod = serviceManagerClass.getMethod("getService", String::class.java)
-                val windowManagerBinder = getServiceMethod.invoke(null, "window") as IBinder
-                
-                val iWindowManagerStubClass = Class.forName("android.view.IWindowManager\$Stub")
-                val asInterfaceMethod = iWindowManagerStubClass.getMethod("asInterface", IBinder::class.java)
-                val iWindowManagerInstance = asInterfaceMethod.invoke(null, windowManagerBinder)
-                
-                val setForcedDisplayDensityForUserMethod = iWindowManagerInstance.javaClass.getMethod(
-                    "setForcedDisplayDensityForUser",
-                    Int::class.javaPrimitiveType,
-                    Int::class.javaPrimitiveType,
-                    Int::class.javaPrimitiveType
-                )
-                
-                // displayId = 0, density = dpi, userId = -2 (USER_CURRENT)
-                setForcedDisplayDensityForUserMethod.invoke(iWindowManagerInstance, 0, dpi, -2)
-            } catch (e: Exception) {
-                Log.e(TAG, "Reflection API failed", e)
             }
 
             // D. Broadcast Samsung-specific refresh intent
