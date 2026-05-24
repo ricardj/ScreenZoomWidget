@@ -54,6 +54,16 @@ def main():
         
     print(f"Using ADB at: {adb_path}")
     
+    print("Checking if app is already installed...")
+    try:
+        result = subprocess.run([adb_path, "shell", "pm", "list", "packages", "com.gemini.zoomwidget"], check=True, capture_output=True, text=True)
+        if "package:com.gemini.zoomwidget" in result.stdout:
+            print("App is already installed. Uninstalling old version to prevent signature mismatch...")
+            subprocess.run([adb_path, "uninstall", "com.gemini.zoomwidget"], check=True)
+            print("Uninstalled successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Warning: Failed to check or uninstall existing app. Error: {e}")
+
     print("Installing APK...")
     try:
         subprocess.run([adb_path, "install", "-r", apk_path], check=True)

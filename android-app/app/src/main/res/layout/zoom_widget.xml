@@ -13,6 +13,6 @@
         android:layout_centerInParent="true"
         android:contentDescription="@string/zoom_widget_button"
         android:src="@drawable/ic_zoom_in"
-        android:tint="@color/white" />
+        android:tint="@color/icon_foreground" />
 
 </RelativeLayout>

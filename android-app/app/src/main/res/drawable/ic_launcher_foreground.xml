@@ -6,12 +6,12 @@
     
     <!-- Magnifying Glass Body -->
     <path
-        android:fillColor="#FFFFFF"
+        android:fillColor="@color/icon_foreground"
         android:pathData="M74.5,70.5 L64.8,60.8 C68.1,56.5 70,51.2 70,45.5 C70,32 59,21 45.5,21 C32,21 21,32 21,45.5 C21,59 32,70 45.5,70 C51.2,70 56.5,68.1 60.8,64.8 L70.5,74.5 L74.5,70.5 Z M45.5,64 C35.3,64 27,55.7 27,45.5 C27,35.3 35.3,27 45.5,27 C55.7,27 64,35.3 64,45.5 C64,55.7 55.7,64 45.5,64 Z" />
     
     <!-- Plus Sign in the middle -->
     <path
-        android:fillColor="#FFFFFF"
+        android:fillColor="@color/icon_foreground"
         android:pathData="M48.5,36 L42.5,36 L42.5,42.5 L36,42.5 L36,48.5 L42.5,48.5 L42.5,55 L48.5,55 L48.5,48.5 L55,48.5 L55,42.5 L48.5,42.5 Z" />
         
 </vector>
