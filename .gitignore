@@ -58,3 +58,11 @@ Thumbs.db
 # Gradle Wrapper JAR
 # Standard practice is to INCLUDE this, so we don't ignore it.
 # !android-app/gradle/wrapper/gradle-wrapper.jar
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.env
