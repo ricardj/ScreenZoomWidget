@@ -11,8 +11,8 @@ android {
         applicationId = "com.gemini.zoomwidget"
         minSdk = 26
         targetSdk = 26
-        versionCode = 9
-        versionName = "1.4.0"
+        versionCode = 10
+        versionName = "1.4.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

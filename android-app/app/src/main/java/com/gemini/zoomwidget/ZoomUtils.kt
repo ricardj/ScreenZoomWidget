@@ -78,8 +78,10 @@ object ZoomUtils {
                 Int::class.javaPrimitiveType   // userId
             )
 
-            // displayId=0 (default display), density=dpi, userId=-2 (USER_CURRENT)
-            setDensityMethod.invoke(windowManager, 0, dpi, -2)
+            // Use actual user ID (derived from UID) instead of USER_CURRENT (-2),
+            // which would require INTERACT_ACROSS_USERS_FULL permission.
+            val userId = android.os.Process.myUid() / 100000
+            setDensityMethod.invoke(windowManager, 0, dpi, userId)
             dpiApplied = true
             Log.d(TAG, "PRIMARY (IWindowManager): SUCCESS - DPI=$dpi applied")
         } catch (e: Exception) {
