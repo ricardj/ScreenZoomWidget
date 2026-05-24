@@ -9,6 +9,32 @@ import android.util.Log
 object ZoomUtils {
     private const val TAG = "ZoomUtils"
 
+    fun isZoomEnabled(context: Context): Boolean {
+        val resolver = context.contentResolver
+        val samsungZoomIndex = try {
+            Settings.System.getInt(resolver, "screen_zoom")
+        } catch (e: Exception) {
+            try {
+                Settings.Secure.getInt(resolver, "screen_zoom")
+            } catch (e2: Exception) {
+                -1
+            }
+        }
+
+        if (samsungZoomIndex != -1) {
+            return samsungZoomIndex >= 3
+        } else {
+            val displayMetrics = context.resources.displayMetrics
+            val widthPixels = Math.min(displayMetrics.widthPixels, displayMetrics.heightPixels)
+            val zoomedInDpi = widthPixels / 2
+
+            val currentDpi = try {
+                Settings.Secure.getString(resolver, "display_density_forced")
+            } catch (e: Exception) { null }
+            return currentDpi == zoomedInDpi.toString()
+        }
+    }
+
     fun toggleZoom(context: Context) {
         val resolver = context.contentResolver
 
