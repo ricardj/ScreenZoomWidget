@@ -24,9 +24,14 @@ object ZoomUtils {
             }
         }
 
-        // 2. Define toggle targets
-        val zoomedOutDpi = 320
-        val zoomedInDpi = 600
+        // 2. Define toggle targets based on Samsung UI limits
+        // Samsung zoom ranges from 411 dp (zoomed out) to 320 dp (zoomed in).
+        // Since DPI = width_pixels * 160 / dp, we calculate target DPI dynamically:
+        val displayMetrics = context.resources.displayMetrics
+        val widthPixels = Math.min(displayMetrics.widthPixels, displayMetrics.heightPixels)
+        val zoomedOutDpi = (widthPixels * 7) / 18
+        val zoomedInDpi = widthPixels / 2
+
         val zoomedOutIndex = 0
         val zoomedInIndex = 4
 
