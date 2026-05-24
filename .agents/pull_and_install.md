@@ -3,7 +3,7 @@
 **Description:** Use this skill to download the latest release of the app from GitHub, install it on a connected device, and grant the necessary permissions.
 
 **Steps:**
-1. Execute the Python script from the project root: `python install_latest.py` (or `python3 install_latest.py`).
+1. Execute the Python script from the project root: `python scripts/install_latest.py` (or `python3 scripts/install_latest.py`).
 2. This script will automatically:
    - Fetch the latest APK from the GitHub releases page for `ricardj/ScreenZoomWidget`.
    - Download the APK to the local workspace.

@@ -64,7 +64,9 @@ def main():
         
     print("\nExecuting grant_permission.py...")
     try:
-        subprocess.run([sys.executable, "grant_permission.py"], check=True)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        grant_permission_path = os.path.join(script_dir, "grant_permission.py")
+        subprocess.run([sys.executable, grant_permission_path], check=True)
     except subprocess.CalledProcessError as e:
         print(f"Failed to execute grant_permission.py. Error: {e}")
         sys.exit(1)

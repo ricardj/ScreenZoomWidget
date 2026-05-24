@@ -55,6 +55,9 @@ class ZoomWidgetProvider : AppWidgetProvider() {
             appWidgetId: Int
         ) {
             val views = RemoteViews(context.packageName, R.layout.zoom_widget)
+            val isZoomedIn = ZoomUtils.isZoomEnabled(context)
+            val iconResId = if (isZoomedIn) R.drawable.ic_zoom_out else R.drawable.ic_zoom_in
+            views.setImageViewResource(R.id.zoom_widget_icon, iconResId)
 
             val intent = Intent(context, ZoomWidgetProvider::class.java).apply {
                 action = ACTION_TOGGLE_ZOOM
